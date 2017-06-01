@@ -117,6 +117,7 @@ module.exports = function () {
 
 function _spawn_best_worker(energy_available, spawn, role) {
     var sources = spawn.room.find(FIND_SOURCES);
+    console.log(sources);
     var length = 20;
     sources.sort(_custom_source_sort_by_road_and_work_places);
     if (role == 'b') {

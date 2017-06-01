@@ -1,1 +1,14 @@
-test
+require('spawn');
+require('builder');
+require('harvester');
+require('griefer');
+require('war');
+require('clear_memory');
+
+
+clear_memory();
+harvester();
+spawn();
+builder();
+griefer();
+war();

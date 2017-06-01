@@ -200,11 +200,11 @@ function _process_info_about_spawns_in_room(room_name, sources) {
 
         }
         var source_surroundings_array = current_room.lookAtArea(sources[source].pos.y - 1, sources[source].pos.x - 1, sources[source].pos.y + 1, sources[source].pos.x + 1, true);
-        Console.log(source_surroundings_array);
+        console.log(source_surroundings_array);
         //подсчитываем количество свободных мест вокруг места добычи
         Memory.res[sources[source].id].e = 0;
         for (var source_surrounding_object in source_surroundings_array) {
-            if (source_surroundings_array[source_surrounding_object]['type'] == 'plain' || source_surroundings_array[source_surrounding_object]['type'] == "swamp") {
+            if (source_surroundings_array[source_surrounding_object].type == 'plain' || source_surroundings_array[source_surrounding_object].type == "swamp") {
                 Memory.res[sources[source].id].e++;
             }
         }

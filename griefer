@@ -1,0 +1,106 @@
+module.exports = function () {
+    for (var name in Game.rooms) {
+
+        //переделать на поиск по памяти
+        var current_griefers = Game.rooms[name].find(FIND_MY_CREEPS, {
+            filter: function (creep) {
+                return creep.memory.r == 'ac';
+            }
+        });
+        for (var creep in current_griefers) {
+            if (current_griefers[creep].carry.energy != current_griefers[creep].carryCapacity) {
+                var targets = current_griefers[creep].pos.findClosest(FIND_DROPPED_ENERGY);
+
+                if (targets) {
+                    console.log("smb is dead - going");
+                    current_griefers[creep].moveTo(targets);
+                    current_griefers[creep].pickup(targets);
+                } else {
+                    var going_to = {};
+                    var friendly_structures = Game.rooms[name].find(FIND_MY_STRUCTURES, {
+                        filter: function (structure) {
+                            return (structure.structureType == 'link' || structure.structureType == 'spawn' || structure.structureType == 'storage' || structure.structureType == 'extension');
+                        }
+                    });
+
+                    for (var j in friendly_structures) {
+
+                        if ((friendly_structures[j].structureType == "link" || friendly_structures[j].structureType == "spawn" || friendly_structures[j].structureType == "extension") && friendly_structures[j].energy != friendly_structures[j].energyCapacity) {
+                            going_to = friendly_structures[j];
+                            break;
+                        }
+                        if (friendly_structures[j].structureType == "storage" && friendly_structures[j].store != friendly_structures[j].storeCapacity) {
+                            going_to = friendly_structures[j];
+
+                            break;
+                        }
+
+                    }
+                    current_griefers[creep].moveTo(going_to);
+                    current_griefers[creep].transferEnergy(going_to);
+                }
+            } else {
+                var going_to = {};
+                var friendly_structures = Game.rooms[name].find(FIND_MY_STRUCTURES, {
+                    filter: function (structure) {
+                        return (structure.structureType == 'link' || structure.structureType == 'spawn' || structure.structureType == 'storage' || structure.structureType == 'extension');
+                    }
+                });
+
+                for (var j in friendly_structures) {
+
+                    if ((friendly_structures[j].structureType == "link" || friendly_structures[j].structureType == "spawn" || friendly_structures[j].structureType == "extension") && friendly_structures[j].energy != friendly_structures[j].energyCapacity) {
+                        going_to = friendly_structures[j];
+                        break;
+                    }
+                    if (friendly_structures[j].structureType == "storage" && friendly_structures[j].store != friendly_structures[j].storeCapacity) {
+                        going_to = friendly_structures[j];
+
+                        break;
+                    }
+
+                }
+                current_griefers[creep].moveTo(going_to);
+                current_griefers[creep].transferEnergy(going_to);
+            }
+        }
+
+    }
+    if (Memory.war.time_to_pwn == 1) {
+        for (var i in Memory.creeps) {
+            if (Game.creeps[i] && Game.creeps[i].memory.r == 'ab') {
+                if (Game.flags['s']) {
+                    if (Game.creeps[i].carry.energy != Game.creeps[i].carryCapacity) {
+
+                        Game.creeps[i].moveTo(Game.flags['s']);
+                        var targets = Game.creeps[i].pos.findClosest(FIND_DROPPED_ENERGY);
+                        Game.creeps[i].pickup(targets);
+                    }else{
+                        for (var name in Game.rooms) {
+                            var going_to = {};
+                            var friendly_structures = Game.rooms[name].find(FIND_MY_STRUCTURES, {
+                                filter: function (structure) {
+                                    return ( structure.structureType == 'storage');
+                                }
+                            });
+
+                            for (var j in friendly_structures) {
+
+
+                                if (friendly_structures[j].structureType == "storage" && friendly_structures[j].store != friendly_structures[j].storeCapacity) {
+                                    going_to = friendly_structures[j];
+
+                                    break;
+                                }
+
+                            }
+                            Game.creeps[i].moveTo(going_to);
+                            Game.creeps[i].transferEnergy(going_to);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+}

@@ -1,0 +1,17 @@
+module.exports = function () {
+    for(var i in Memory.creeps) {
+        if(Game.creeps[i]&&Game.creeps[i].ticksToLive<3){
+            Game.creeps[i].room.memory.dead=1;
+        }
+        if(!Game.creeps[i]) {
+
+            if(Memory.creeps[i].r=="a"&&Memory.creeps[i].res){
+
+                //очищаем историю - где он работал
+                var resource_name = Game.getObjectById(Memory.creeps[i].res);
+                Memory.res[resource_name.id].e += 1;
+            }
+            delete Memory.creeps[i];
+        }
+    }
+}

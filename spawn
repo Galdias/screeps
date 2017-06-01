@@ -1,0 +1,227 @@
+/**
+ * creep roles (r)
+ *
+ * a-harvester
+ * aa-long range harvester
+ * ab-stealer
+ * ac-greafer
+ * b-builder
+ * ba-carrier
+ * bb-updater
+ * c-meelee attacker
+ * ca-patroller
+ * cb-enemy roamer
+ * d-range attacker
+ * e-healer
+ * f-meatbol
+ */
+
+module.exports = function () {
+//находим, сколько у нас спавнов, и соотвественно делаем рабочих
+    for (var name in Game.rooms) {
+
+        //переделать на поиск по памяти
+        var my_spawns_in_room = Game.rooms[name].find(FIND_MY_SPAWNS);
+        if (my_spawns_in_room.length) {
+
+            var current_number_of_harvesters = Game.rooms[name].find(FIND_MY_CREEPS, {
+                filter: function (creep) {
+                    return creep.memory.r == 'a';
+                }
+            }).length;
+
+            var current_number_of_builders = Game.rooms[name].find(FIND_MY_CREEPS, {
+                filter: function (creep) {
+                    return creep.memory.r == 'b';
+                }
+            }).length;
+            var current_griefers_number = Game.rooms[name].find(FIND_MY_CREEPS, {
+                filter: function (creep) {
+                    return creep.memory.r == 'ac';
+                }
+            }).length;
+            var current_room_lvl = Game.rooms[name].controller.level;
+            var max_energy = _get_max_energy_by_lvl(current_room_lvl);
+
+
+            if (current_number_of_harvesters < 9) {
+                for (var spawn in my_spawns_in_room) {
+                    _spawn_best_worker(Game.rooms[name].energyAvailable, my_spawns_in_room[spawn], "a");
+                    break;
+                }
+                continue;
+            }
+            if (Memory.war.time_to_pwn == 1) {
+                var current_attackers_number = 0;
+                for (var i in Memory.creeps) {
+                    if (Game.creeps[i] && Game.creeps[i].memory.r == 'c') {
+                        current_attackers_number += 1;
+                    }
+                }
+
+                if (current_attackers_number < 2) {
+                    for (var spawn in my_spawns_in_room) {
+                        _spawn_attacker(my_spawns_in_room[spawn]);
+                    }
+                }
+            }
+            if(Memory.war.spawn_stealers ==1){
+
+                for (var spawn in my_spawns_in_room) {
+                    _spawn_stealer(my_spawns_in_room[spawn]);
+                }
+
+            }
+
+            if (current_room_lvl > 1 && current_number_of_builders < 4) {
+                for (var spawn in my_spawns_in_room) {
+                    _spawn_best_worker(Game.rooms[name].energyAvailable, my_spawns_in_room[spawn], "b");
+                    break;
+                }
+                continue;
+            }
+            if (current_room_lvl > 1 && current_griefers_number < 1) {
+                for (var spawn in my_spawns_in_room) {
+                    _spawn_best_worker(Game.rooms[name].energyAvailable, my_spawns_in_room[spawn], "ac");
+                    break;
+                }
+                continue;
+            }
+            //рассчитываем сколько нам нужно рабочих
+            //////// рассчет трудяг//////////////
+            var sources_in_room = Game.rooms[name].find(FIND_SOURCES);
+            var total_number_of_harvesters_needed_to_spawn = 0;
+            for (var source_id in sources_in_room) {
+                if (!Memory.res[sources_in_room[source_id].id].d) {
+                    total_number_of_harvesters_needed_to_spawn += Memory.res[sources_in_room[source_id].id].e;
+                }
+
+            }
+
+
+            /////////////////////////////////////////////////
+
+            for (var spawn in my_spawns_in_room) {
+                //   if (!my_spawns_in_room[spawn].spawning && my_spawns_in_room[spawn].energy >= max_energy && total_number_of_harvesters_needed_to_spawn > 0) {
+                //      _spawn_best_worker(max_energy, my_spawns_in_room[spawn], "a");
+                if (!my_spawns_in_room[spawn].spawning && total_number_of_harvesters_needed_to_spawn > 0) {
+                    _spawn_best_worker(Game.rooms[name].energyAvailable, my_spawns_in_room[spawn], "a");
+                    total_number_of_harvesters_needed_to_spawn -= 1;
+                }
+
+            }
+        }
+    }
+
+}
+
+function _spawn_best_worker(energy_available, spawn, role) {
+    var sources = spawn.room.find(FIND_SOURCES);
+    var length = 20;
+    sources.sort(_custom_source_sort_by_road_and_work_places);
+    if (role == 'b') {
+        length = 30;
+    }
+    if (role == 'a') {
+        for (var source in sources) {
+            if (Memory.res[sources[source].id].e <= 0 || Memory.res[sources[source].id].d == 1)continue;
+            length = Memory.res[sources[source].id].c;
+            break;
+        }
+    }
+    var best_opp = _get_best_opportunity(energy_available, length);
+    console.log("Spawning creep with " + energy_available + " energy to go " + length);
+    spawn.createCreep(best_opp['string'], null, {r: role});
+}
+
+function _spawn_attacker(spawn) {
+    spawn.createCreep([MOVE, MOVE, MOVE, MOVE, ATTACK, ATTACK, ATTACK, ATTACK], null, {r: "c"});
+}
+function _spawn_stealer(spawn) {
+    spawn.createCreep([ MOVE, MOVE, MOVE,MOVE, CARRY, CARRY, CARRY,CARRY,CARRY,CARRY,CARRY,CARRY], null, {r: "ab"});
+}
+
+function _custom_source_sort_by_road_and_work_places(a, b) {
+    if (Memory.res[a.id].c < Memory.res[b.id].c && Memory.res[a.id].e > 0) {
+        return -1;
+    } else if (Memory.res[a.id].c < Memory.res[b.id].c && Memory.res[a.id].e <= 0 && Memory.res[b.id].e <= 0) {
+        return -1;
+    }
+    else {
+        return 1;
+    }
+}
+
+function _get_max_energy_by_lvl(lvl) {
+    var energy = 300;
+    if (lvl == 2) {
+        energy = 550;
+    } else if (lvl == 3) {
+        energy = 800;
+    } else if (lvl == 4) {
+        energy = 1300;
+    } else if (lvl == 5) {
+        energy = 1800;
+    } else if (lvl == 6) {
+        energy = 2300;
+    } else if (lvl == 7) {
+        energy = 3100;
+    }
+    return energy;
+}
+
+function _get_best_opportunity(energy, length) {
+    var json_string = '{"300":{"0":{"eff":"4.00","string":["work","work","carry","move"]},"1":{"eff":"2.86","string":["work","work","carry","move"]},"4":{"eff":"1.72","string":["work","carry","carry","move","move"]},"10":{"eff":"1.43","string":["work","carry","carry","move","move"]},"20":{"eff":"1.11","string":["work","carry","carry","move","move"]},"40":{"eff":"0.77","string":["work","carry","carry","move","move"]},"60":{"eff":"0.59","string":["work","carry","carry","move","move"]},"80":{"eff":"0.48","string":["work","carry","carry","move","move"]},"100":{"eff":"0.40","string":["work","carry","carry","move","move"]},"140":{"eff":"0.30","string":["work","carry","carry","move","move"]},"180":{"eff":"0.24","string":["work","carry","carry","move","move"]},"220":{"eff":"0.20","string":["work","carry","carry","move","move"]},"300":{"eff":"0.15","string":["work","carry","carry","move","move"]},"400":{"eff":"0.12","string":["work","carry","carry","move","move"]},"500":{"eff":"0.10","string":["work","carry","carry","move","move"]}},"550":{"0":{"eff":"8.00","string":["work","work","work","work","carry","move","move"]},"1":{"eff":"5.17","string":["work","work","work","carry","carry","move","move","move"]},"4":{"eff":"3.66","string":["work","work","work","carry","carry","move","move","move"]},"10":{"eff":"2.61","string":["work","work","carry","carry","carry","carry","move","move","move"]},"20":{"eff":"1.94","string":["work","work","carry","carry","carry","move","move","move","move"]},"40":{"eff":"1.28","string":["work","work","carry","carry","carry","carry","move","move","move"]},"60":{"eff":"1.02","string":["work","carry","carry","carry","carry","carry","move","move","move","move"]},"80":{"eff":"0.88","string":["work","carry","carry","carry","carry","carry","move","move","move","move"]},"100":{"eff":"0.77","string":["work","carry","carry","carry","carry","carry","move","move","move","move"]},"140":{"eff":"0.62","string":["work","carry","carry","carry","carry","carry","move","move","move","move"]},"180":{"eff":"0.52","string":["work","carry","carry","carry","carry","carry","move","move","move","move"]},"220":{"eff":"0.44","string":["work","carry","carry","carry","carry","carry","move","move","move","move"]},"300":{"eff":"0.34","string":["work","carry","carry","carry","carry","carry","move","move","move","move"]},"400":{"eff":"0.27","string":["work","carry","carry","carry","carry","carry","move","move","move","move"]},"500":{"eff":"0.22","string":["work","carry","carry","carry","carry","carry","move","move","move","move"]}},"800":{"0":{"eff":"14.00","string":["work","work","work","work","work","work","work","carry","move"]},"1":{"eff":"7.76","string":["work","work","work","work","work","carry","carry","carry","move","move","move"]},"4":{"eff":"5.44","string":["work","work","work","work","carry","carry","carry","move","move","move","move","move"]},"10":{"eff":"3.93","string":["work","work","work","carry","carry","carry","carry","carry","move","move","move","move","move"]},"20":{"eff":"2.92","string":["work","work","work","carry","carry","carry","carry","carry","move","move","move","move","move"]},"40":{"eff":"1.99","string":["work","work","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move"]},"60":{"eff":"1.59","string":["work","work","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move"]},"80":{"eff":"1.33","string":["work","work","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move"]},"100":{"eff":"1.14","string":["work","work","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move"]},"140":{"eff":"0.88","string":["work","work","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move"]},"180":{"eff":"0.72","string":["work","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move"]},"220":{"eff":"0.63","string":["work","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move"]},"300":{"eff":"0.51","string":["work","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move"]},"400":{"eff":"0.41","string":["work","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move"]},"500":{"eff":"0.34","string":["work","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move"]}},"1300":{"0":{"eff":"24.00","string":["work","work","work","work","work","work","work","work","work","work","work","work","carry","move"]},"1":{"eff":"12.63","string":["work","work","work","work","work","work","work","work","carry","carry","carry","carry","move","move","move","move","move","move"]},"4":{"eff":"8.82","string":["work","work","work","work","work","work","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move"]},"10":{"eff":"6.40","string":["work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move"]},"20":{"eff":"4.71","string":["work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move"]},"40":{"eff":"3.30","string":["work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move"]},"60":{"eff":"2.60","string":["work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move"]},"80":{"eff":"2.19","string":["work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move"]},"100":{"eff":"1.89","string":["work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move"]},"140":{"eff":"1.48","string":["work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move"]},"180":{"eff":"1.24","string":["work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move"]},"220":{"eff":"1.08","string":["work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move"]},"300":{"eff":"0.85","string":["work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move"]},"400":{"eff":"0.68","string":["work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move"]},"500":{"eff":"0.56","string":["work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move"]}},"1800":{"0":{"eff":"34.00","string":["work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","carry","move"]},"1":{"eff":"17.51","string":["work","work","work","work","work","work","work","work","work","work","work","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move"]},"4":{"eff":"12.27","string":["work","work","work","work","work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"10":{"eff":"8.97","string":["work","work","work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move","move"]},"20":{"eff":"6.67","string":["work","work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move","move"]},"40":{"eff":"4.62","string":["work","work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move","move"]},"60":{"eff":"3.53","string":["work","work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move","move"]},"80":{"eff":"2.89","string":["work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move","move"]},"100":{"eff":"2.48","string":["work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"140":{"eff":"1.94","string":["work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"180":{"eff":"1.62","string":["work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"220":{"eff":"1.40","string":["work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"300":{"eff":"1.09","string":["work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"400":{"eff":"0.86","string":["work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"500":{"eff":"0.71","string":["work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]}},"2300":{"0":{"eff":"44.00","string":["work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","carry","move"]},"1":{"eff":"21.48","string":["work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move"]},"4":{"eff":"13.75","string":["work","work","work","work","work","work","work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"10":{"eff":"9.47","string":["work","work","work","work","work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move","move","move"]},"20":{"eff":"6.79","string":["work","work","work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move","move"]},"40":{"eff":"4.62","string":["work","work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move","move"]},"60":{"eff":"3.53","string":["work","work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move","move"]},"80":{"eff":"2.89","string":["work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move","move"]},"100":{"eff":"2.48","string":["work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"140":{"eff":"1.94","string":["work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"180":{"eff":"1.62","string":["work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"220":{"eff":"1.40","string":["work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"300":{"eff":"1.09","string":["work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"400":{"eff":"0.86","string":["work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"500":{"eff":"0.71","string":["work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]}},"3100":{"0":{"eff":"56.00","string":["work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","carry","move"]},"1":{"eff":"21.48","string":["work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move"]},"4":{"eff":"13.75","string":["work","work","work","work","work","work","work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"10":{"eff":"9.47","string":["work","work","work","work","work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move","move","move"]},"20":{"eff":"6.79","string":["work","work","work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move","move"]},"40":{"eff":"4.62","string":["work","work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move","move"]},"60":{"eff":"3.53","string":["work","work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move","move"]},"80":{"eff":"2.89","string":["work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move","move"]},"100":{"eff":"2.48","string":["work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"140":{"eff":"1.94","string":["work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"180":{"eff":"1.62","string":["work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"220":{"eff":"1.40","string":["work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"300":{"eff":"1.09","string":["work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"400":{"eff":"0.86","string":["work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"500":{"eff":"0.71","string":["work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]}}}';
+    var json_object = JSON.parse(json_string);
+    var energy_array = [];
+    if (energy < 550 && energy >= 300) {
+        energy = 300;
+    } else if (energy < 800 && energy >= 550) {
+        energy = 550;
+    } else if (energy < 1300 && energy >= 800) {
+        energy = 800;
+    } else if (energy < 1800 && energy >= 1300) {
+        energy = 1300;
+    } else if (energy < 2300 && energy >= 1800) {
+        energy = 1800;
+    } else if (energy < 3100 && energy >= 2300) {
+        energy = 2300;
+    } else {
+        energy = 3100;
+    }
+
+    if (length < 1 && length >= 0) {
+        length = 0;
+    } else if (length < 4 && length >= 1) {
+        length = 1;
+    } else if (length < 10 && length >= 4) {
+        length = 4;
+    } else if (length < 20 && length >= 10) {
+        length = 10;
+    } else if (length < 40 && length >= 20) {
+        length = 20;
+    } else if (length < 60 && length >= 40) {
+        length = 40;
+    } else if (length < 80 && length >= 60) {
+        length = 60;
+    } else if (length < 100 && length >= 80) {
+        length = 80;
+    } else if (length < 140 && length >= 100) {
+        length = 100;
+    } else if (length < 180 && length >= 140) {
+        length = 140;
+    } else if (length < 220 && length >= 180) {
+        length = 180;
+    } else if (length < 300 && length >= 220) {
+        length = 220;
+    } else if (length < 400 && length >= 300) {
+        length = 300;
+    } else if (length < 500 && length >= 400) {
+        length = 400;
+    } else {
+        length = 500;
+    }
+    return json_object[energy][length];
+
+
+}

@@ -1,0 +1,23 @@
+module.exports = function () {
+    if (Memory.war.time_to_pwn == 1) {
+        for (var i in Memory.creeps) {
+            if (Game.creeps[i] && Game.creeps[i].memory.r == 'c') {
+                if (Game.flags['a']) {
+                    Game.creeps[i].moveTo(Game.flags['a']);
+                } else if (Game.flags['aa']) {
+
+
+                    Game.creeps[i].moveTo(Game.flags['aa']);
+                    Game.creeps[i].attack(Game.flags['aa']);
+                } else {
+                    var target = Game.creeps[i].pos.findClosest(FIND_HOSTILE_CREEPS);
+                    if (target) {
+                        Game.creeps[i].moveTo(target);
+                        Game.creeps[i].attack(target);
+                    }
+                }
+            }
+        }
+    }
+}
+

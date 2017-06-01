@@ -1,0 +1,207 @@
+module.exports = function () {
+    if (!Memory.res) {
+        Memory.res = {};
+    }
+//сделать, чтобы только 2 крипа было на одном ресе
+    //сделать проверку на кипера в округе, если он есть, то сначала послать туда боевые клетки, только если боевые клетки не заняты
+    //сделать проверку, сколько тайлов в округе свободно (пропускная способность в идеальности)
+    //сделать проверку, есть ли вообще еще энергия в ресурсе
+    //сделать проверку на ближайшие ресурсы
+    //сделать проверку на свободное место в спавнах/хранилищах
+    //если все забито, переквалифицировать в рабочих
+    for (var name in Game.rooms) {
+
+        //переделать на поиск по памяти
+        var current_harvesters = Game.rooms[name].find(FIND_MY_CREEPS, {
+            filter: function (creep) {
+                return creep.memory.r == 'a';
+            }
+        });
+        var sources = Game.rooms[name].find(FIND_SOURCES);
+        if (!Memory.res[sources[0].id]) {
+            _process_info_about_spawns_in_room(name, sources);
+        }
+        for (var creep in current_harvesters) {
+            if (current_harvesters[creep].carry.energy == 0) {
+                current_harvesters[creep].memory.a = 1;
+            }
+
+            if (current_harvesters[creep].carry.energy == current_harvesters[creep].carryCapacity) {
+                current_harvesters[creep].memory.a = 0;
+            }
+            if (current_harvesters[creep].memory.a) {
+
+                if (current_harvesters[creep].memory.res) {
+                    var working_on = Game.getObjectById(current_harvesters[creep].memory.res);
+                    current_harvesters[creep].moveTo(working_on);
+                    current_harvesters[creep].harvest(working_on);
+                } else {
+
+                    sources.sort(_custom_source_sort_by_road_and_work_places);
+
+                    for (var source in sources) {
+                        if (Memory.res[sources[source].id].e <= 0 || Memory.res[sources[source].id].d == 1)continue;
+
+                        Memory.res[sources[source].id].e = Memory.res[sources[source].id].e - 1;
+                        current_harvesters[creep].memory.res = sources[source].id;
+                        current_harvesters[creep].moveTo(sources[source]);
+                        current_harvesters[creep].harvest(sources[source]);
+                        break;
+                    }
+                }
+
+            }
+            else {
+                if (!current_harvesters[creep].memory.res) {
+                    for (var source in sources) {
+                        if (Memory.res[sources[source].id].e <= 0 || Memory.res[sources[source].id].d == 1)continue;
+
+                        Memory.res[sources[source].id].e = Memory.res[sources[source].id].e - 1;
+                        current_harvesters[creep].memory.res = sources[source].id;
+                        current_harvesters[creep].moveTo(sources[source]);
+                        current_harvesters[creep].harvest(sources[source]);
+                        break;
+                    }
+
+                }
+                var working_on = Game.getObjectById(current_harvesters[creep].memory.res);
+                var going_to = Game.getObjectById(Memory.res[working_on.id].f);
+
+                var direction_changed = false;
+                if (going_to.energy == going_to.energyCapacity) {
+
+                    var friendly_structures = Game.rooms[name].find(FIND_MY_STRUCTURES, {
+                        filter: function (structure) {
+                            return (structure.structureType == 'link' || structure.structureType == 'spawn' || structure.structureType == 'storage' || structure.structureType == 'extension');
+                        }
+                    });
+
+                    for (var j in friendly_structures) {
+
+                        if ((friendly_structures[j].structureType == "link" || friendly_structures[j].structureType == "spawn" || friendly_structures[j].structureType == "extension") && friendly_structures[j].energy != friendly_structures[j].energyCapacity) {
+                            going_to = friendly_structures[j];
+                            direction_changed = true;
+
+                            break;
+                        }
+                        if (friendly_structures[j].structureType == "storage" && friendly_structures[j].store != friendly_structures[j].storeCapacity) {
+                            going_to = friendly_structures[j];
+                            direction_changed = true;
+
+                            break;
+                        }
+
+                    }
+                    if (!direction_changed) {
+
+                        var current_builders = Game.rooms[name].find(FIND_MY_CREEPS, {
+                            filter: function (creep_builder) {
+                                return (creep_builder.memory.r == 'b' && (creep_builder.carry.energy / creep_builder.carryCapacity < 0.5 ));
+                            }
+                        });
+
+                        for (var builder_id in current_builders) {
+
+                            going_to = current_builders[builder_id];
+                            break;
+                        }
+                    }
+
+                }
+                current_harvesters[creep].moveTo(going_to);
+                current_harvesters[creep].transferEnergy(going_to);
+
+
+            }
+
+        }
+
+    }
+
+
+}
+
+function _custom_source_sort_by_road_and_work_places(a, b) {
+    if (Memory.res[a.id].c < Memory.res[b.id].c && Memory.res[a.id].e > 0) {
+        return -1;
+    } else if (Memory.res[a.id].c < Memory.res[b.id].c && Memory.res[a.id].e <= 0 && Memory.res[b.id].e <= 0) {
+        return -1;
+    }
+    else {
+        return 1;
+    }
+}
+
+
+/**
+ * структура хранения информации
+ * res:
+ * res_id:
+ * a: - количество свободных клеток
+ * b: - пропускная способность спавна
+ * c: - кратчайшее расстоянее до спавна (без учета месности)
+ * d: - есть ли рядом со спавном кипер
+ * e: - количество свободных мест
+ * f: - id кратчайшего ресурса
+ */
+
+/**
+ * предварительно запустить скрипт
+ *
+ * c
+ */
+function _process_info_about_spawns_in_room(room_name, sources) {
+
+    var current_room = Game.rooms[room_name];
+    current_room.roomName = room_name;
+
+    var keeper_structure_in_room = false;
+    var keeper_lairs = Game.rooms[room_name].find(FIND_HOSTILE_STRUCTURES, {
+        filter: function (structure) {
+            return structure.structureType == 'keeperLair';
+        }
+    });
+    if (keeper_lairs.length) {
+        keeper_structure_in_room = true;
+    }
+
+    for (var source in sources) {
+        var min_path = 9999;
+        var keeper_search_range = 5;
+        Memory.res[sources[source].id] = {};
+
+        //рассчитываем кратчайший путь до структуры, в которую можно КЛАСТЬ руду
+        var friendly_structures = current_room.find(FIND_MY_STRUCTURES, {
+            filter: function (structure) {
+                return (structure.structureType == 'link' || structure.structureType == 'spawn' || structure.structureType == 'storage');
+            }
+        });
+        for (var structure in friendly_structures) {
+            /*  if (Math.sqrt((friendly_structures[structure].pos.x - sources[source].pos.x) * (friendly_structures[structure].pos.x - sources[source].pos.x) + (friendly_structures[structure].pos.y - sources[source].pos.y) * (friendly_structures[structure].pos.y - sources[source].pos.y)) < min_path) {
+             min_path = Math.sqrt((friendly_structures[structure].pos.x - sources[source].pos.x) * (friendly_structures[structure].pos.x - sources[source].pos.x) + (friendly_structures[structure].pos.y - sources[source].pos.y) * (friendly_structures[structure].pos.y - sources[source].pos.y));
+             }
+             */
+            var path_array = current_room.findPath(sources[source].pos, friendly_structures[structure].pos);
+            if (path_array.length < min_path) {
+                min_path = path_array.length;
+                Memory.res[sources[source].id].f = friendly_structures[structure].id;
+            }
+
+        }
+
+        Memory.res[sources[source].id].a = 0;
+        Memory.res[sources[source].id].b = 0;
+        Memory.res[sources[source].id].c = min_path;
+        Memory.res[sources[source].id].d = 0;
+        // вот тут нужен четкий рассчет рабочих мест
+        Memory.res[sources[source].id].e = 2;
+
+        //рассчитываем есть ли рядом кипер
+        for (var keeper_lair in keeper_lairs) {
+            if (Math.sqrt((keeper_lairs[keeper_lair].pos.x - sources[source].pos.x) * (keeper_lairs[keeper_lair].pos.x - sources[source].pos.x) + (keeper_lairs[keeper_lair].pos.y - sources[source].pos.y) * (keeper_lairs[keeper_lair].pos.y - sources[source].pos.y)) <= keeper_search_range) {
+                Memory.res[sources[source].id].d = 1;
+            }
+        }
+
+    }
+}

@@ -72,7 +72,7 @@ module.exports = function () {
 
                     var friendly_structures = Game.rooms[name].find(FIND_MY_STRUCTURES, {
                         filter: function (structure) {
-                            return (structure.structureType == 'link' || structure.structureType == 'spawn' || structure.structureType == 'storage' || structure.structureType == 'extension');
+                            return (structure.structureType == 'link' || structure.structureType == 'spawn' || structure.structureType == 'storage' || structure.structureType == 'extension' || structure.structureType == 'controller');
                         }
                     });
 

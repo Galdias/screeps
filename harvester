@@ -90,6 +90,12 @@ module.exports = function () {
 
                             break;
                         }
+                        if (friendly_structures[j].structureType == "controller") {
+                            going_to = friendly_structures[j];
+                            direction_changed = true;
+
+                            break;
+                        }
 
                     }
                     if (!direction_changed) {
@@ -109,7 +115,11 @@ module.exports = function () {
 
                 }
                 current_harvesters[creep].moveTo(going_to);
-                current_harvesters[creep].transfer(going_to,RESOURCE_ENERGY);
+                if(!going_to.structureType == "controller"){
+                  current_harvesters[creep].transfer(going_to,RESOURCE_ENERGY);
+                }else{
+                    current_harvesters[creep].upgradeController(going_to);
+                }
 
 
             }

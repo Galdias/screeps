@@ -109,7 +109,7 @@ module.exports = function () {
 
                 }
                 current_harvesters[creep].moveTo(going_to);
-                current_harvesters[creep].transferEnergy(going_to);
+                current_harvesters[creep].transfer(going_to,RESOURCE_ENERGY);
 
 
             }

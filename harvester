@@ -202,13 +202,15 @@ function _process_info_about_spawns_in_room(room_name, sources) {
         var source_surroundings_array = current_room.lookAtArea(sources[source].pos.y - 1, sources[source].pos.x - 1, sources[source].pos.y + 1, sources[source].pos.x + 1, true);
         console.log(source_surroundings_array);
         //подсчитываем количество свободных мест вокруг места добычи
-        Memory.res[sources[source].id].e = 0;
+        Memory.res[sources[source].id].f = 0;
         for (var source_surrounding_object in source_surroundings_array) {
             if ((source_surroundings_array[source_surrounding_object].type == 'terrain' && source_surroundings_array[source_surrounding_object].terrain == "plain") || (source_surroundings_array[source_surrounding_object].type == 'terrain' && source_surroundings_array[source_surrounding_object].terrain == "swamp")) {
-                Memory.res[sources[source].id].e++;
+                Memory.res[sources[source].id].f++;
             }
         }
 
+
+        Memory.res[sources[source].id].e = Memory.res[sources[source].id].f;
         Memory.res[sources[source].id].a = 0;
         Memory.res[sources[source].id].b = 0;
         Memory.res[sources[source].id].c = min_path;

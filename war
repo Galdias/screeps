@@ -1,4 +1,7 @@
 module.exports = function () {
+    if (!Memory.war.time_to_pwn) {
+        Memory.war.time_to_pwn = 0;
+    }
     if (Memory.war.time_to_pwn == 1) {
         for (var i in Memory.creeps) {
             if (Game.creeps[i] && Game.creeps[i].memory.r == 'c') {

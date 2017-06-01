@@ -204,7 +204,7 @@ function _process_info_about_spawns_in_room(room_name, sources) {
         //подсчитываем количество свободных мест вокруг места добычи
         Memory.res[sources[source].id].f = 0;
         for (var source_surrounding_object in source_surroundings_array) {
-            if ((source_surroundings_array[source_surrounding_object].type == 'terrain' && source_surroundings_array[source_surrounding_object].terrain == "plain") || (source_surroundings_array[source_surrounding_object].type == 'terrain' && source_surroundings_array[source_surrounding_object].terrain == "swamp")) {
+            if ((source_surroundings_array[source_surrounding_object].terrain == "plain"||source_surroundings_array[source_surrounding_object].terrain == "swamp") && source_surroundings_array[source_surrounding_object].type == 'terrain') {
                 Memory.res[sources[source].id].f++;
             }
         }

@@ -68,6 +68,7 @@ module.exports = function () {
                 var going_to = Game.getObjectById(Memory.res[working_on.id].f);
 
                 var direction_changed = false;
+                //наполняем другие структуры, если предполагаемая занята
                 if (going_to.energy == going_to.energyCapacity) {
 
                     var friendly_structures = Game.rooms[name].find(FIND_MY_STRUCTURES, {
@@ -115,7 +116,7 @@ module.exports = function () {
 
                 }
                 current_harvesters[creep].moveTo(going_to);
-                if(!going_to.structureType == "controller"){
+                if(going_to.structureType != "controller"){
                   current_harvesters[creep].transfer(going_to,RESOURCE_ENERGY);
                 }else{
                     current_harvesters[creep].upgradeController(going_to);
@@ -198,13 +199,20 @@ function _process_info_about_spawns_in_room(room_name, sources) {
             }
 
         }
+        var source_surroundings_array = current_room.lookAtArea(sources[source].pos.y-1,sources[source].pos.x-1,sources[source].pos.y+1,sources[source].pos.x+1,true);
+        //подсчитываем количество свободных мест вокруг места добычи
+        Memory.res[sources[source].id].e = 0;
+        for (var source_surrounding_object in source_surroundings_array) {
+            if(source_surroundings_array[source_surrounding_object]['type']=='plain'||source_surroundings_array[source_surrounding_object]['type']=="swamp"){
+                Memory.res[sources[source].id].e++;
+            }
+        }
 
         Memory.res[sources[source].id].a = 0;
         Memory.res[sources[source].id].b = 0;
         Memory.res[sources[source].id].c = min_path;
         Memory.res[sources[source].id].d = 0;
-        // вот тут нужен четкий рассчет рабочих мест
-        Memory.res[sources[source].id].e = 2;
+
 
         //рассчитываем есть ли рядом кипер
         for (var keeper_lair in keeper_lairs) {

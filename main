@@ -1,10 +1,9 @@
-require('spawn');
-require('builder');
-require('harvester');
-require('griefer');
-require('war');
-require('clear_memory');
-
+var spawn = require('spawn');
+var builder = require('builder');
+var harvester = require('harvester');
+var griefer = require('griefer');
+var war = require('war');
+var clear_memory = require('clear_memory');
 
 clear_memory();
 harvester();

@@ -116,9 +116,9 @@ module.exports = function () {
 
                 }
                 current_harvesters[creep].moveTo(going_to);
-                if(going_to.structureType != "controller"){
-                  current_harvesters[creep].transfer(going_to,RESOURCE_ENERGY);
-                }else{
+                if (going_to.structureType != "controller") {
+                    current_harvesters[creep].transfer(going_to, RESOURCE_ENERGY);
+                } else {
                     current_harvesters[creep].upgradeController(going_to);
                 }
 
@@ -199,11 +199,12 @@ function _process_info_about_spawns_in_room(room_name, sources) {
             }
 
         }
-        var source_surroundings_array = current_room.lookAtArea(sources[source].pos.y-1,sources[source].pos.x-1,sources[source].pos.y+1,sources[source].pos.x+1,true);
+        var source_surroundings_array = current_room.lookAtArea(sources[source].pos.y - 1, sources[source].pos.x - 1, sources[source].pos.y + 1, sources[source].pos.x + 1, true);
+        Console.log(source_surroundings_array);
         //подсчитываем количество свободных мест вокруг места добычи
         Memory.res[sources[source].id].e = 0;
         for (var source_surrounding_object in source_surroundings_array) {
-            if(source_surroundings_array[source_surrounding_object]['type']=='plain'||source_surroundings_array[source_surrounding_object]['type']=="swamp"){
+            if (source_surroundings_array[source_surrounding_object]['type'] == 'plain' || source_surroundings_array[source_surrounding_object]['type'] == "swamp") {
                 Memory.res[sources[source].id].e++;
             }
         }

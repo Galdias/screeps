@@ -210,6 +210,7 @@ function _process_info_about_spawns_in_room(room_name, sources) {
         }
 
 
+
         Memory.res[sources[source].id].e = Memory.res[sources[source].id].f;
         Memory.res[sources[source].id].a = 0;
         Memory.res[sources[source].id].b = 0;

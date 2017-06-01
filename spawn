@@ -130,8 +130,11 @@ function _spawn_best_worker(energy_available, spawn, role) {
         }
     }
     var best_opp = _get_best_opportunity(energy_available, length);
-    console.log("Spawning creep with " + energy_available + " energy to go " + length);
-    spawn.createCreep(best_opp['string'], null, {r: role});
+
+    if(energy_available>300){
+        //console.log("Spawning creep with " + energy_available + " energy to go " + length);
+        spawn.createCreep(best_opp['string'], null, {r: role});
+    }
 }
 
 function _spawn_attacker(spawn) {

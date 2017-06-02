@@ -112,7 +112,7 @@ module.exports = function () {
 
 }
 
-//TODO рассчет пути каждый раз проверять - а наличие дорог и болот
+
 function _count_best_number_of_work_places(source, energy_for_spawn) {
     energy_for_spawn = _count_nearest_energy_lvl_for_spawn(energy_for_spawn)
     //если в прошлый раз общитывали по другому уровню энергии
@@ -124,6 +124,7 @@ function _count_best_number_of_work_places(source, energy_for_spawn) {
         }
         //считаем сколько времени тратится на добычу
         //обычно тратится 3n времени на путь по простой дороге или 2n по дороге, различее не очень большое, так что считаем по 2n
+        //TODO рассчет пути :каждый раз проверять - на наличие дорог и болот
         var walking_distance_ticks = Memory.res[source.id].c * 3;
         //сколько тратится на добычу
 

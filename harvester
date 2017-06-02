@@ -33,7 +33,9 @@ module.exports = function () {
 
                 if (current_harvesters[creep].memory.res) {
                     var working_on = Game.getObjectById(current_harvesters[creep].memory.res);
-                    current_harvesters[creep].moveTo(working_on);
+                    if(current_harvesters[creep].moveTo(working_on,{reusePath:7})==-2){
+                        console.log('it is hapenning');
+                    }
                     current_harvesters[creep].harvest(working_on);
                 } else {
 
@@ -44,7 +46,9 @@ module.exports = function () {
 
                         Memory.res[sources[source].id].e = Memory.res[sources[source].id].e - 1;
                         current_harvesters[creep].memory.res = sources[source].id;
-                        current_harvesters[creep].moveTo(sources[source]);
+                        if(current_harvesters[creep].moveTo(sources[source],{reusePath:7})==-2){
+                            console.log('it is hapenning');
+                        }
                         current_harvesters[creep].harvest(sources[source]);
                         break;
                     }
@@ -58,7 +62,9 @@ module.exports = function () {
 
                         Memory.res[sources[source].id].e = Memory.res[sources[source].id].e - 1;
                         current_harvesters[creep].memory.res = sources[source].id;
-                        current_harvesters[creep].moveTo(sources[source]);
+                        if(current_harvesters[creep].moveTo(sources[source],{reusePath:7})==-2){
+                            console.log('it is hapenning');
+                        }
                         current_harvesters[creep].harvest(sources[source]);
                         break;
                     }
@@ -115,7 +121,7 @@ module.exports = function () {
                     }
 
                 }
-                current_harvesters[creep].moveTo(going_to);
+                current_harvesters[creep].moveTo(going_to,{reusePath:7});
                 if (going_to.structureType != "controller") {
                     current_harvesters[creep].transfer(going_to, RESOURCE_ENERGY);
                 } else {

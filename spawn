@@ -116,14 +116,14 @@ function _count_best_number_of_work_places(source, energy_for_spawn) {
     energy_for_spawn = _count_nearest_energy_lvl_for_spawn(energy_for_spawn)
     //если в прошлый раз общитывали по другому уровню энергии
     if (energy_for_spawn != Memory.res[source.id].l) {
-        var best_opp = _get_best_opportunity(energy_for_spawn, Memory.res[source.id].с);
+        var best_opp = _get_best_opportunity(energy_for_spawn, Memory.res[source.id].c);
         var needed_eff = 10;
         if (source.energyCapacity == 1500) {
             needed_eff = 5;
         }
         //считаем сколько времени тратится на добычу
         //обычно тратится 3n времени на путь по простой дороге или 2n по дороге, различее не очень большое, так что считаем по 2n
-        var walking_distance_ticks = Memory.res[source.id].с * 2;
+        var walking_distance_ticks = Memory.res[source.id].c * 2;
         //сколько тратится на добычу
         var work_parts = best_opp['string'].filter(function (x) {
             return x == "work"

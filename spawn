@@ -112,6 +112,7 @@ module.exports = function () {
 
 }
 
+//TODO рассчет пути каждый раз проверять - а наличие дорог и болот
 function _count_best_number_of_work_places(source, energy_for_spawn) {
     energy_for_spawn = _count_nearest_energy_lvl_for_spawn(energy_for_spawn)
     //если в прошлый раз общитывали по другому уровню энергии
@@ -129,25 +130,20 @@ function _count_best_number_of_work_places(source, energy_for_spawn) {
         var work_parts = best_opp['string'].filter(function (x) {
             return x == "work"
         }).length;
-        console.log(source.id);
-        console.log(work_parts);
         var carry_parts = best_opp['string'].filter(function (x) {
             return x == "carry"
         }).length;
-        console.log(carry_parts);
         var harvesting_ticks = carry_parts * 25 / work_parts;
         //считаем эффективность данного крипа
         var eff_per_tick = (carry_parts * 50) / (walking_distance_ticks + harvesting_ticks);
-        console.log(eff_per_tick);
         var needed_harvesters = Math.floor(needed_eff / eff_per_tick);
-        console.log(needed_harvesters);
         //если  надо добытчиков больше, чем есть место для "стойбища"
         if (needed_harvesters > Memory.res[source.id].g) {
             //cчитаем сколько в итоге есть свободного времени, если брать максимальное количество занятых мест
             var free_ticks = Memory.res[source.id].g * walking_distance_ticks;
             //считаем, сколько имеет смысла впихивать дополнительных крипов, чтобы те окупали себя наиболее эффеклитвно
             var add_harvesters = Math.floor(free_ticks / harvesting_ticks);
-            if ((free_ticks / harvesting_ticks - add_harvesters) > 0.6)add_harvesters++;
+            if ((free_ticks / harvesting_ticks - add_harvesters) > 0.7)add_harvesters++;
             Memory.res[source.id].l = energy_for_spawn;
             Memory.res[source.id].e += (Memory.res[source.id].g + add_harvesters) - Memory.res[source.id].h;
             Memory.res[source.id].h = Memory.res[source.id].g + add_harvesters;

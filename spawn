@@ -125,17 +125,22 @@ function _count_best_number_of_work_places(source, energy_for_spawn) {
         //обычно тратится 3n времени на путь по простой дороге или 2n по дороге, различее не очень большое, так что считаем по 2n
         var walking_distance_ticks = Memory.res[source.id].c * 2;
         //сколько тратится на добычу
+
         var work_parts = best_opp['string'].filter(function (x) {
             return x == "work"
         }).length;
+        console.log(source.id);
+        console.log(work_parts);
         var carry_parts = best_opp['string'].filter(function (x) {
             return x == "carry"
         }).length;
+        console.log(carry_parts);
         var harvesting_ticks = carry_parts / (work_parts * 2);
         //считаем эффективность данного крипа
         var eff_per_tick = (carry_parts * 50) / (walking_distance_ticks + harvesting_ticks);
-
+        console.log(eff_per_tick);
         var needed_harvesters = Math.floor(needed_eff / eff_per_tick);
+        console.log(needed_harvesters);
         //если  надо добытчиков больше, чем есть место для "стойбища"
         if (needed_harvesters > Memory.res[source.id].g) {
             //cчитаем сколько в итоге есть свободного времени, если брать максимальное количество занятых мест

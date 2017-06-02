@@ -44,13 +44,32 @@ module.exports = function () {
             var max_energy = _get_max_energy_by_lvl(current_room_lvl);
 
 
-            if (current_number_of_harvesters < 9) {
-                for (var spawn in my_spawns_in_room) {
-                    _spawn_best_worker(Game.rooms[name].energyAvailable, my_spawns_in_room[spawn], "a");
-                    break;
+            //рассчитываем сколько нам нужно рабочих
+            //////// рассчет трудяг//////////////
+            if (Game.rooms[name].energyAvailable >= 300) {
+                var sources_in_room = Game.rooms[name].find(FIND_SOURCES);
+                var total_number_of_harvesters_needed_to_spawn = 0;
+                for (var source_id in sources_in_room) {
+                    if (!Memory.res[sources_in_room[source_id].id].d) {
+                        if (Memory.res[sources_in_room[source_id].id].e > 0) {
+                            _count_best_number_of_work_places(sources_in_room[source_id], Game.rooms[name].energyAvailable);
+                            total_number_of_harvesters_needed_to_spawn += Memory.res[sources_in_room[source_id].id].e;
+                        }
+
+                    }
+
                 }
-                continue;
+
+
+                for (var spawn in my_spawns_in_room) {
+                    if (!my_spawns_in_room[spawn].spawning && total_number_of_harvesters_needed_to_spawn > 0) {
+                        _spawn_best_worker(Game.rooms[name].energyAvailable, my_spawns_in_room[spawn], "a");
+                        total_number_of_harvesters_needed_to_spawn -= 1;
+                    }
+
+                }
             }
+            /////////////////////////////////////////////////
             if (Memory.war.time_to_pwn == 1) {
                 var current_attackers_number = 0;
                 for (var i in Memory.creeps) {
@@ -65,7 +84,7 @@ module.exports = function () {
                     }
                 }
             }
-            if(Memory.war.spawn_stealers ==1){
+            if (Memory.war.spawn_stealers == 1) {
 
                 for (var spawn in my_spawns_in_room) {
                     _spawn_stealer(my_spawns_in_room[spawn]);
@@ -87,38 +106,60 @@ module.exports = function () {
                 }
                 continue;
             }
-            //рассчитываем сколько нам нужно рабочих
-            //////// рассчет трудяг//////////////
-            var sources_in_room = Game.rooms[name].find(FIND_SOURCES);
-            var total_number_of_harvesters_needed_to_spawn = 0;
-            for (var source_id in sources_in_room) {
-                if (!Memory.res[sources_in_room[source_id].id].d) {
-                    total_number_of_harvesters_needed_to_spawn += Memory.res[sources_in_room[source_id].id].e;
-                }
 
-            }
-
-
-            /////////////////////////////////////////////////
-
-            for (var spawn in my_spawns_in_room) {
-                //   if (!my_spawns_in_room[spawn].spawning && my_spawns_in_room[spawn].energy >= max_energy && total_number_of_harvesters_needed_to_spawn > 0) {
-                //      _spawn_best_worker(max_energy, my_spawns_in_room[spawn], "a");
-                if (!my_spawns_in_room[spawn].spawning && total_number_of_harvesters_needed_to_spawn > 0) {
-                    _spawn_best_worker(Game.rooms[name].energyAvailable, my_spawns_in_room[spawn], "a");
-                    total_number_of_harvesters_needed_to_spawn -= 1;
-                }
-
-            }
         }
     }
 
 }
 
+function _count_best_number_of_work_places(source, energy_for_spawn) {
+    energy_for_spawn = _count_nearest_energy_lvl_for_spawn(energy_for_spawn)
+    //если в прошлый раз общитывали по другому уровню энергии
+    if (energy_for_spawn != Memory.res[source.id].l) {
+        var best_opp = _get_best_opportunity(energy_for_spawn, Memory.res[source.id].с);
+        var needed_eff = 10;
+        if (source.energyCapacity == 1500) {
+            needed_eff = 5;
+        }
+        //считаем сколько времени тратится на добычу
+        //обычно тратится 3n времени на путь по простой дороге или 2n по дороге, различее не очень большое, так что считаем по 2n
+        var walking_distance_ticks = Memory.res[source.id].с * 2;
+        //сколько тратится на добычу
+        var work_parts = best_opp['string'].filter(function (x) {
+            return x == "work"
+        }).length;
+        var carry_parts = best_opp['string'].filter(function (x) {
+            return x == "carry"
+        }).length;
+        var harvesting_ticks = carry_parts / (work_parts * 2);
+        //считаем эффективность данного крипа
+        var eff_per_tick = (carry_parts * 50) / (walking_distance_ticks + harvesting_ticks);
+
+        var needed_harvesters = Math.floor(needed_eff / eff_per_tick);
+        //если  надо добытчиков больше, чем есть место для "стойбища"
+        if (needed_harvesters > Memory.res[source.id].g) {
+            //cчитаем сколько в итоге есть свободного времени, если брать максимальное количество занятых мест
+            var free_ticks = Memory.res[source.id].g * walking_distance_ticks;
+            //считаем, сколько имеет смысла впихивать дополнительных крипов, чтобы те окупали себя наиболее эффеклитвно
+            var add_harvesters = Math.floor(free_ticks / harvesting_ticks);
+            if ((free_ticks / harvesting_ticks - add_harvesters) > 0.6)add_harvesters++;
+            Memory.res[source.id].l = energy_for_spawn;
+            Memory.res[source.id].e += (Memory.res[source.id].g + add_harvesters) - Memory.res[source.id].h;
+            Memory.res[source.id].h = Memory.res[source.id].g + add_harvesters;
+        } else if (needed_harvesters <= Memory.res[source.id].g) {
+            Memory.res[source.id].l = energy_for_spawn;
+            Memory.res[source.id].e += needed_harvesters - Memory.res[source.id].h;
+            Memory.res[source.id].h = needed_harvesters;
+        }
+
+    }
+}
+
+
 function _spawn_best_worker(energy_available, spawn, role) {
     var sources = spawn.room.find(FIND_SOURCES);
     var length = 20;
-    if(sources.length>1){
+    if (sources.length > 1) {
         sources.sort(_custom_source_sort_by_road_and_work_places);
     }
     if (role == 'b') {
@@ -133,7 +174,7 @@ function _spawn_best_worker(energy_available, spawn, role) {
     }
     var best_opp = _get_best_opportunity(energy_available, length);
 
-    if(energy_available>=300){
+    if (energy_available >= 300) {
         //console.log("Spawning creep with " + energy_available + " energy to go " + length);
         spawn.createCreep(best_opp['string'], null, {r: role});
     }
@@ -143,7 +184,7 @@ function _spawn_attacker(spawn) {
     spawn.createCreep([MOVE, MOVE, MOVE, MOVE, ATTACK, ATTACK, ATTACK, ATTACK], null, {r: "c"});
 }
 function _spawn_stealer(spawn) {
-    spawn.createCreep([ MOVE, MOVE, MOVE,MOVE, CARRY, CARRY, CARRY,CARRY,CARRY,CARRY,CARRY,CARRY], null, {r: "ab"});
+    spawn.createCreep([MOVE, MOVE, MOVE, MOVE, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY], null, {r: "ab"});
 }
 
 function _custom_source_sort_by_road_and_work_places(a, b) {
@@ -178,7 +219,12 @@ function _get_max_energy_by_lvl(lvl) {
 function _get_best_opportunity(energy, length) {
     var json_string = '{"300":{"0":{"eff":"4.00","string":["work","work","carry","move"]},"1":{"eff":"2.86","string":["work","work","carry","move"]},"4":{"eff":"1.72","string":["work","carry","carry","move","move"]},"10":{"eff":"1.43","string":["work","carry","carry","move","move"]},"20":{"eff":"1.11","string":["work","carry","carry","move","move"]},"40":{"eff":"0.77","string":["work","carry","carry","move","move"]},"60":{"eff":"0.59","string":["work","carry","carry","move","move"]},"80":{"eff":"0.48","string":["work","carry","carry","move","move"]},"100":{"eff":"0.40","string":["work","carry","carry","move","move"]},"140":{"eff":"0.30","string":["work","carry","carry","move","move"]},"180":{"eff":"0.24","string":["work","carry","carry","move","move"]},"220":{"eff":"0.20","string":["work","carry","carry","move","move"]},"300":{"eff":"0.15","string":["work","carry","carry","move","move"]},"400":{"eff":"0.12","string":["work","carry","carry","move","move"]},"500":{"eff":"0.10","string":["work","carry","carry","move","move"]}},"550":{"0":{"eff":"8.00","string":["work","work","work","work","carry","move","move"]},"1":{"eff":"5.17","string":["work","work","work","carry","carry","move","move","move"]},"4":{"eff":"3.66","string":["work","work","work","carry","carry","move","move","move"]},"10":{"eff":"2.61","string":["work","work","carry","carry","carry","carry","move","move","move"]},"20":{"eff":"1.94","string":["work","work","carry","carry","carry","move","move","move","move"]},"40":{"eff":"1.28","string":["work","work","carry","carry","carry","carry","move","move","move"]},"60":{"eff":"1.02","string":["work","carry","carry","carry","carry","carry","move","move","move","move"]},"80":{"eff":"0.88","string":["work","carry","carry","carry","carry","carry","move","move","move","move"]},"100":{"eff":"0.77","string":["work","carry","carry","carry","carry","carry","move","move","move","move"]},"140":{"eff":"0.62","string":["work","carry","carry","carry","carry","carry","move","move","move","move"]},"180":{"eff":"0.52","string":["work","carry","carry","carry","carry","carry","move","move","move","move"]},"220":{"eff":"0.44","string":["work","carry","carry","carry","carry","carry","move","move","move","move"]},"300":{"eff":"0.34","string":["work","carry","carry","carry","carry","carry","move","move","move","move"]},"400":{"eff":"0.27","string":["work","carry","carry","carry","carry","carry","move","move","move","move"]},"500":{"eff":"0.22","string":["work","carry","carry","carry","carry","carry","move","move","move","move"]}},"800":{"0":{"eff":"14.00","string":["work","work","work","work","work","work","work","carry","move"]},"1":{"eff":"7.76","string":["work","work","work","work","work","carry","carry","carry","move","move","move"]},"4":{"eff":"5.44","string":["work","work","work","work","carry","carry","carry","move","move","move","move","move"]},"10":{"eff":"3.93","string":["work","work","work","carry","carry","carry","carry","carry","move","move","move","move","move"]},"20":{"eff":"2.92","string":["work","work","work","carry","carry","carry","carry","carry","move","move","move","move","move"]},"40":{"eff":"1.99","string":["work","work","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move"]},"60":{"eff":"1.59","string":["work","work","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move"]},"80":{"eff":"1.33","string":["work","work","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move"]},"100":{"eff":"1.14","string":["work","work","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move"]},"140":{"eff":"0.88","string":["work","work","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move"]},"180":{"eff":"0.72","string":["work","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move"]},"220":{"eff":"0.63","string":["work","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move"]},"300":{"eff":"0.51","string":["work","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move"]},"400":{"eff":"0.41","string":["work","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move"]},"500":{"eff":"0.34","string":["work","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move"]}},"1300":{"0":{"eff":"24.00","string":["work","work","work","work","work","work","work","work","work","work","work","work","carry","move"]},"1":{"eff":"12.63","string":["work","work","work","work","work","work","work","work","carry","carry","carry","carry","move","move","move","move","move","move"]},"4":{"eff":"8.82","string":["work","work","work","work","work","work","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move"]},"10":{"eff":"6.40","string":["work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move"]},"20":{"eff":"4.71","string":["work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move"]},"40":{"eff":"3.30","string":["work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move"]},"60":{"eff":"2.60","string":["work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move"]},"80":{"eff":"2.19","string":["work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move"]},"100":{"eff":"1.89","string":["work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move"]},"140":{"eff":"1.48","string":["work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move"]},"180":{"eff":"1.24","string":["work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move"]},"220":{"eff":"1.08","string":["work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move"]},"300":{"eff":"0.85","string":["work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move"]},"400":{"eff":"0.68","string":["work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move"]},"500":{"eff":"0.56","string":["work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move"]}},"1800":{"0":{"eff":"34.00","string":["work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","carry","move"]},"1":{"eff":"17.51","string":["work","work","work","work","work","work","work","work","work","work","work","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move"]},"4":{"eff":"12.27","string":["work","work","work","work","work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"10":{"eff":"8.97","string":["work","work","work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move","move"]},"20":{"eff":"6.67","string":["work","work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move","move"]},"40":{"eff":"4.62","string":["work","work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move","move"]},"60":{"eff":"3.53","string":["work","work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move","move"]},"80":{"eff":"2.89","string":["work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move","move"]},"100":{"eff":"2.48","string":["work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"140":{"eff":"1.94","string":["work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"180":{"eff":"1.62","string":["work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"220":{"eff":"1.40","string":["work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"300":{"eff":"1.09","string":["work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"400":{"eff":"0.86","string":["work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"500":{"eff":"0.71","string":["work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]}},"2300":{"0":{"eff":"44.00","string":["work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","carry","move"]},"1":{"eff":"21.48","string":["work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move"]},"4":{"eff":"13.75","string":["work","work","work","work","work","work","work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"10":{"eff":"9.47","string":["work","work","work","work","work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move","move","move"]},"20":{"eff":"6.79","string":["work","work","work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move","move"]},"40":{"eff":"4.62","string":["work","work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move","move"]},"60":{"eff":"3.53","string":["work","work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move","move"]},"80":{"eff":"2.89","string":["work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move","move"]},"100":{"eff":"2.48","string":["work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"140":{"eff":"1.94","string":["work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"180":{"eff":"1.62","string":["work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"220":{"eff":"1.40","string":["work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"300":{"eff":"1.09","string":["work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"400":{"eff":"0.86","string":["work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"500":{"eff":"0.71","string":["work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]}},"3100":{"0":{"eff":"56.00","string":["work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","carry","move"]},"1":{"eff":"21.48","string":["work","work","work","work","work","work","work","work","work","work","work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move"]},"4":{"eff":"13.75","string":["work","work","work","work","work","work","work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"10":{"eff":"9.47","string":["work","work","work","work","work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move","move","move"]},"20":{"eff":"6.79","string":["work","work","work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move","move"]},"40":{"eff":"4.62","string":["work","work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move","move"]},"60":{"eff":"3.53","string":["work","work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move","move"]},"80":{"eff":"2.89","string":["work","work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move","move"]},"100":{"eff":"2.48","string":["work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"140":{"eff":"1.94","string":["work","work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"180":{"eff":"1.62","string":["work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"220":{"eff":"1.40","string":["work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"300":{"eff":"1.09","string":["work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"400":{"eff":"0.86","string":["work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]},"500":{"eff":"0.71","string":["work","work","work","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","carry","move","move","move","move","move","move","move","move","move","move","move"]}}}';
     var json_object = JSON.parse(json_string);
-    var energy_array = [];
+    energy = _count_nearest_energy_lvl_for_spawn(energy);
+    length = _count_nearest_length_lvl_for_spawn(length);
+
+    return json_object[energy][length];
+}
+function _count_nearest_energy_lvl_for_spawn(energy) {
     if (energy < 550 && energy >= 300) {
         energy = 300;
     } else if (energy < 800 && energy >= 550) {
@@ -194,7 +240,10 @@ function _get_best_opportunity(energy, length) {
     } else {
         energy = 3100;
     }
+    return energy;
+}
 
+function _count_nearest_length_lvl_for_spawn(length) {
     if (length < 1 && length >= 0) {
         length = 0;
     } else if (length < 4 && length >= 1) {
@@ -226,7 +275,5 @@ function _get_best_opportunity(energy, length) {
     } else {
         length = 500;
     }
-    return json_object[energy][length];
-
-
+    return length;
 }

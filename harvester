@@ -148,12 +148,14 @@ function _custom_source_sort_by_road_and_work_places(a, b) {
  * структура хранения информации
  * res:
  * res_id:
- * a: - количество свободных клеток
  * b: - пропускная способность спавна
  * c: - кратчайшее расстоянее до спавна (без учета месности)
  * d: - есть ли рядом со спавном кипер
  * e: - количество свободных мест
  * f: - id кратчайшего ресурса
+ * g: - количество тайлов около ресурса
+ * h: - наиболее эффективное число рабочих на этом ресурсе
+ * l: - по какому уровню энергии обсчитывались крипы в прошлый раз
  */
 
 /**
@@ -196,8 +198,7 @@ function _process_info_about_spawns_in_room(room_name, sources) {
 
         }
         var source_surroundings_array = current_room.lookAtArea(sources[source].pos.y - 1, sources[source].pos.x - 1, sources[source].pos.y + 1, sources[source].pos.x + 1, true);
-        console.log(source_surroundings_array);
-        //подсчитываем количество свободных мест вокруг места добычи
+       //подсчитываем количество свободных мест вокруг места добычи
         Memory.res[sources[source].id].g = 0;
         for (var source_surrounding_object in source_surroundings_array) {
             if ((source_surroundings_array[source_surrounding_object].terrain == "plain"||source_surroundings_array[source_surrounding_object].terrain == "swamp") && source_surroundings_array[source_surrounding_object].type == 'terrain') {
@@ -207,11 +208,15 @@ function _process_info_about_spawns_in_room(room_name, sources) {
 
 
 
-        Memory.res[sources[source].id].e = Memory.res[sources[source].id].g;
-        Memory.res[sources[source].id].a = 0;
+
+
         Memory.res[sources[source].id].b = 0;
         Memory.res[sources[source].id].c = min_path;
         Memory.res[sources[source].id].d = 0;
+        Memory.res[sources[source].id].e = Memory.res[sources[source].id].g;
+        Memory.res[sources[source].id].h = Memory.res[sources[source].id].e;
+        Memory.res[sources[source].id].l = 300;
+
 
 
         //рассчитываем есть ли рядом кипер

@@ -1,7 +1,7 @@
 module.exports = function () {
     if (!Memory.war.time_to_pwn) {
         Memory.war = {};
-        Memory.war.time_to_pwn = 1;
+        Memory.war.time_to_pwn = -1;
 
     }
     if (Memory.war.time_to_pwn == 1) {

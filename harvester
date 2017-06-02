@@ -215,7 +215,7 @@ function _process_info_about_spawns_in_room(room_name, sources) {
         Memory.res[sources[source].id].d = 0;
         Memory.res[sources[source].id].e = Memory.res[sources[source].id].g;
         Memory.res[sources[source].id].h = Memory.res[sources[source].id].e;
-        Memory.res[sources[source].id].l = 300;
+        Memory.res[sources[source].id].l = 0;
 
 
 
